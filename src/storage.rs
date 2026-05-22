@@ -1,5 +1,6 @@
 use crate::error::{FlarenvError, Result};
 use crate::ids::{SnapshotId, WorkspaceId};
+use crate::layout::initialize_workspace_root;
 use crate::model::ResourceLimits;
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
@@ -178,6 +179,7 @@ impl StorageBackend for BtrfsStorage {
         self.ensure_layout()?;
         let path = self.workspace_path(workspace_id);
         run_command(self.create_workspace_command(workspace_id))?;
+        initialize_workspace_root(&path)?;
         Ok(path)
     }
 
@@ -189,6 +191,7 @@ impl StorageBackend for BtrfsStorage {
         self.ensure_layout()?;
         let path = self.workspace_path(workspace_id);
         run_command(self.clone_command(snapshot_id, workspace_id))?;
+        initialize_workspace_root(&path)?;
         Ok(path)
     }
 

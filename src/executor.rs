@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::ids::{SessionId, WorkspaceId};
+use crate::layout::GUEST_PROFILE_PATH;
 use crate::model::{ResourceLimits, SessionRequest, Workspace};
 use crate::network::NetworkPolicy;
 use crate::nix_profile::FixedNixProfile;
@@ -89,7 +90,7 @@ impl NspawnExecutor {
                 command.args(argv);
             }
             _ => {
-                command.arg("/bin/sh");
+                command.arg(format!("{GUEST_PROFILE_PATH}/bin/sh"));
             }
         }
 
