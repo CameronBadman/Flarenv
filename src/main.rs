@@ -1,4 +1,7 @@
-use flarenv::{measure_usage, run_preflight, DaemonConfig, FileMetadataStore, PathUsageProbe};
+use flarenv::{
+    measure_usage, plan_gc, run_preflight, DaemonConfig, FileMetadataStore, GcPolicy,
+    PathUsageProbe,
+};
 use std::env;
 
 fn main() {
@@ -13,6 +16,10 @@ fn main() {
     }
     if args.get(1).is_some_and(|arg| arg == "usage") {
         usage(args.get(2));
+        return;
+    }
+    if args.get(1).is_some_and(|arg| arg == "gc-plan") {
+        gc_plan(args.get(2));
         return;
     }
 
@@ -32,6 +39,28 @@ fn initialize() -> flarenv::Result<()> {
     println!("nix profile: {}", config.nix_profile.profile_path.display());
     println!("persistent daemon, ssh frontend, and host adapters are not wired yet");
     Ok(())
+}
+
+fn gc_plan(metadata_path: Option<&String>) {
+    let Some(metadata_path) = metadata_path else {
+        eprintln!("flarenvd: gc-plan requires a metadata path");
+        std::process::exit(2);
+    };
+    let store = FileMetadataStore::new(metadata_path);
+    let metadata = match store.load() {
+        Ok(metadata) => metadata,
+        Err(err) => {
+            eprintln!("flarenvd: {err}");
+            std::process::exit(1);
+        }
+    };
+    for action in plan_gc(
+        &metadata,
+        std::time::SystemTime::now(),
+        &GcPolicy::default(),
+    ) {
+        println!("{action:?}");
+    }
 }
 
 fn usage(metadata_path: Option<&String>) {
@@ -104,6 +133,7 @@ fn print_help() {
     println!("USAGE:");
     println!("    flarenvd [--help]");
     println!("    flarenvd check-host");
+    println!("    flarenvd gc-plan <metadata-path>");
     println!("    flarenvd usage <metadata-path>");
     println!();
     println!("ENV:");
