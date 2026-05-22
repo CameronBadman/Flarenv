@@ -16,8 +16,32 @@ pub struct InMemoryMetadata {
 }
 
 impl InMemoryMetadata {
+    pub fn from_parts(
+        workspaces: BTreeMap<WorkspaceId, Workspace>,
+        snapshots: BTreeMap<SnapshotId, WorkspaceSnapshot>,
+        policies: BTreeMap<PolicyId, NetworkPolicy>,
+    ) -> Self {
+        Self {
+            workspaces,
+            snapshots,
+            policies,
+        }
+    }
+
     pub fn insert_policy(&mut self, policy: NetworkPolicy) {
         self.policies.insert(policy.id().clone(), policy);
+    }
+
+    pub fn workspaces(&self) -> impl Iterator<Item = &Workspace> {
+        self.workspaces.values()
+    }
+
+    pub fn snapshots(&self) -> impl Iterator<Item = &WorkspaceSnapshot> {
+        self.snapshots.values()
+    }
+
+    pub fn policies(&self) -> impl Iterator<Item = &NetworkPolicy> {
+        self.policies.values()
     }
 
     pub fn workspace(&self, id: &WorkspaceId) -> Option<&Workspace> {
@@ -65,6 +89,10 @@ where
 
     pub fn metadata(&self) -> &InMemoryMetadata {
         &self.metadata
+    }
+
+    pub fn replace_metadata(&mut self, metadata: InMemoryMetadata) {
+        self.metadata = metadata;
     }
 
     pub fn create_workspace(
