@@ -17,6 +17,7 @@ pub mod network;
 pub mod nix_profile;
 pub mod preflight;
 pub mod runtime;
+pub mod ssh_wire;
 pub mod storage;
 pub mod usage;
 
@@ -34,6 +35,7 @@ pub use network::NetworkPolicy;
 pub use nix_profile::FixedNixProfile;
 pub use preflight::{run_preflight, HostCheck, PreflightReport};
 pub use runtime::{ControlEvent, RuntimeStats, SessionRuntime};
+pub use ssh_wire::{FlarenvSshServer, SshWireConfig};
 pub use storage::{BtrfsStorage, InMemoryStorage, StorageBackend};
 pub use usage::{
     measure_usage, parse_btrfs_qgroup_show, read_btrfs_qgroup_usage, BtrfsQgroupUsage,

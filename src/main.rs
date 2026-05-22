@@ -1,8 +1,9 @@
 use flarenv::{
-    measure_usage, plan_gc, run_preflight, DaemonConfig, FileMetadataStore, GcPolicy,
-    PathUsageProbe,
+    measure_usage, plan_gc, run_preflight, AllowListAuthorizer, DaemonConfig, FileMetadataStore,
+    FlarenvSshServer, GcPolicy, PathUsageProbe, SshWireConfig, WorkspaceId,
 };
 use std::env;
+use std::net::SocketAddr;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -16,6 +17,10 @@ fn main() {
     }
     if args.get(1).is_some_and(|arg| arg == "usage") {
         usage(args.get(2));
+        return;
+    }
+    if args.get(1).is_some_and(|arg| arg == "serve-ssh") {
+        serve_ssh(args.get(2), args.get(3), args.get(4));
         return;
     }
     if args.get(1).is_some_and(|arg| arg == "gc-plan") {
@@ -39,6 +44,62 @@ fn initialize() -> flarenv::Result<()> {
     println!("nix profile: {}", config.nix_profile.profile_path.display());
     println!("persistent daemon, ssh frontend, and host adapters are not wired yet");
     Ok(())
+}
+
+fn serve_ssh(addr: Option<&String>, workspace: Option<&String>, principal: Option<&String>) {
+    let (Some(addr), Some(workspace), Some(principal)) = (addr, workspace, principal) else {
+        eprintln!("flarenvd: serve-ssh requires <addr> <workspace-id> <principal>");
+        std::process::exit(2);
+    };
+    let addr: SocketAddr = match addr.parse() {
+        Ok(addr) => addr,
+        Err(err) => {
+            eprintln!("flarenvd: invalid listen addr: {err}");
+            std::process::exit(2);
+        }
+    };
+    let workspace_id = match WorkspaceId::new(workspace) {
+        Ok(workspace_id) => workspace_id,
+        Err(err) => {
+            eprintln!("flarenvd: {err}");
+            std::process::exit(2);
+        }
+    };
+    let config = match DaemonConfig::from_env() {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("flarenvd: {err}");
+            std::process::exit(1);
+        }
+    };
+    let control_plane = match config.build_host_control_plane() {
+        Ok(control_plane) => control_plane,
+        Err(err) => {
+            eprintln!("flarenvd: {err}");
+            std::process::exit(1);
+        }
+    };
+    let mut authorizer = AllowListAuthorizer::default();
+    authorizer.grant(principal, workspace_id.clone());
+    let mut server = FlarenvSshServer::new(
+        SshWireConfig::new(addr, workspace_id),
+        control_plane,
+        authorizer,
+    );
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(runtime) => runtime,
+        Err(err) => {
+            eprintln!("flarenvd: failed to build async runtime: {err}");
+            std::process::exit(1);
+        }
+    };
+    if let Err(err) = runtime.block_on(server.run()) {
+        eprintln!("flarenvd: {err}");
+        std::process::exit(1);
+    }
 }
 
 fn gc_plan(metadata_path: Option<&String>) {
@@ -142,6 +203,7 @@ fn print_help() {
     println!("    flarenvd [--help]");
     println!("    flarenvd check-host");
     println!("    flarenvd gc-plan <metadata-path>");
+    println!("    flarenvd serve-ssh <addr> <workspace-id> <principal>");
     println!("    flarenvd usage <metadata-path>");
     println!();
     println!("ENV:");
