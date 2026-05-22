@@ -183,11 +183,9 @@ fn parse_u64(value: &str, name: &str) -> Result<u64> {
 fn sum_optional(values: impl Iterator<Item = Option<u64>>) -> Option<u64> {
     let mut saw_value = false;
     let mut total = 0;
-    for value in values {
-        if let Some(value) = value {
-            saw_value = true;
-            total += value;
-        }
+    for value in values.flatten() {
+        saw_value = true;
+        total += value;
     }
     saw_value.then_some(total)
 }
