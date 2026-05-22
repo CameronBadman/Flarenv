@@ -1,0 +1,21 @@
+[package]
+name = "flarenv"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Nix-based agent environment manager"
+
+[lib]
+name = "flarenv"
+path = "src/lib.rs"
+
+[[bin]]
+name = "flarenvd"
+path = "src/main.rs"
+
+[profile.dev]
+debug = true
+
+[profile.release]
+lto = "thin"
+strip = true

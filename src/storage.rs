@@ -1,0 +1,178 @@
+use crate::error::{FlarenvError, Result};
+use crate::ids::{SnapshotId, WorkspaceId};
+use crate::model::ResourceLimits;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+pub trait StorageBackend {
+    fn create_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<PathBuf>;
+    fn clone_workspace(
+        &mut self,
+        snapshot_id: &SnapshotId,
+        workspace_id: &WorkspaceId,
+    ) -> Result<PathBuf>;
+    fn snapshot_workspace(
+        &mut self,
+        workspace_id: &WorkspaceId,
+        snapshot_id: &SnapshotId,
+    ) -> Result<PathBuf>;
+    fn delete_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<()>;
+    fn set_quota(&mut self, workspace_id: &WorkspaceId, limits: &ResourceLimits) -> Result<()>;
+}
+
+#[derive(Debug)]
+pub struct InMemoryStorage {
+    root: PathBuf,
+    workspaces: BTreeMap<WorkspaceId, PathBuf>,
+    snapshots: BTreeMap<SnapshotId, PathBuf>,
+}
+
+impl InMemoryStorage {
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        Self {
+            root: root.into(),
+            workspaces: BTreeMap::new(),
+            snapshots: BTreeMap::new(),
+        }
+    }
+}
+
+impl StorageBackend for InMemoryStorage {
+    fn create_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<PathBuf> {
+        if self.workspaces.contains_key(workspace_id) {
+            return Err(FlarenvError::AlreadyExists(format!(
+                "workspace {workspace_id}"
+            )));
+        }
+
+        let path = self.root.join("workspaces").join(workspace_id.as_str());
+        self.workspaces.insert(workspace_id.clone(), path.clone());
+        Ok(path)
+    }
+
+    fn clone_workspace(
+        &mut self,
+        snapshot_id: &SnapshotId,
+        workspace_id: &WorkspaceId,
+    ) -> Result<PathBuf> {
+        if !self.snapshots.contains_key(snapshot_id) {
+            return Err(FlarenvError::NotFound(format!("snapshot {snapshot_id}")));
+        }
+        self.create_workspace(workspace_id)
+    }
+
+    fn snapshot_workspace(
+        &mut self,
+        workspace_id: &WorkspaceId,
+        snapshot_id: &SnapshotId,
+    ) -> Result<PathBuf> {
+        if !self.workspaces.contains_key(workspace_id) {
+            return Err(FlarenvError::NotFound(format!("workspace {workspace_id}")));
+        }
+        if self.snapshots.contains_key(snapshot_id) {
+            return Err(FlarenvError::AlreadyExists(format!(
+                "snapshot {snapshot_id}"
+            )));
+        }
+
+        let path = self.root.join("snapshots").join(snapshot_id.as_str());
+        self.snapshots.insert(snapshot_id.clone(), path.clone());
+        Ok(path)
+    }
+
+    fn delete_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<()> {
+        if self.workspaces.remove(workspace_id).is_none() {
+            return Err(FlarenvError::NotFound(format!("workspace {workspace_id}")));
+        }
+        Ok(())
+    }
+
+    fn set_quota(&mut self, workspace_id: &WorkspaceId, _limits: &ResourceLimits) -> Result<()> {
+        if !self.workspaces.contains_key(workspace_id) {
+            return Err(FlarenvError::NotFound(format!("workspace {workspace_id}")));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BtrfsStorage {
+    root: PathBuf,
+}
+
+impl BtrfsStorage {
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        Self { root: root.into() }
+    }
+
+    pub fn workspace_path(&self, workspace_id: &WorkspaceId) -> PathBuf {
+        self.root.join("workspaces").join(workspace_id.as_str())
+    }
+
+    pub fn snapshot_path(&self, snapshot_id: &SnapshotId) -> PathBuf {
+        self.root.join("snapshots").join(snapshot_id.as_str())
+    }
+
+    pub fn create_workspace_command(&self, workspace_id: &WorkspaceId) -> Command {
+        let mut command = Command::new("btrfs");
+        command
+            .arg("subvolume")
+            .arg("create")
+            .arg(self.workspace_path(workspace_id));
+        command
+    }
+
+    pub fn snapshot_command(
+        &self,
+        workspace_id: &WorkspaceId,
+        snapshot_id: &SnapshotId,
+    ) -> Command {
+        let mut command = Command::new("btrfs");
+        command
+            .arg("subvolume")
+            .arg("snapshot")
+            .arg("-r")
+            .arg(self.workspace_path(workspace_id))
+            .arg(self.snapshot_path(snapshot_id));
+        command
+    }
+
+    pub fn clone_command(&self, snapshot_id: &SnapshotId, workspace_id: &WorkspaceId) -> Command {
+        let mut command = Command::new("btrfs");
+        command
+            .arg("subvolume")
+            .arg("snapshot")
+            .arg(self.snapshot_path(snapshot_id))
+            .arg(self.workspace_path(workspace_id));
+        command
+    }
+
+    pub fn delete_command(path: &Path) -> Command {
+        let mut command = Command::new("btrfs");
+        command.arg("subvolume").arg("delete").arg(path);
+        command
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BtrfsStorage;
+    use crate::ids::{SnapshotId, WorkspaceId};
+
+    #[test]
+    fn builds_btrfs_snapshot_paths() {
+        let storage = BtrfsStorage::new("/var/lib/flarenv");
+        let workspace = WorkspaceId::new("agent_a").unwrap();
+        let snapshot = SnapshotId::new("snap_1").unwrap();
+
+        assert_eq!(
+            storage.workspace_path(&workspace).to_string_lossy(),
+            "/var/lib/flarenv/workspaces/agent_a"
+        );
+        assert_eq!(
+            storage.snapshot_path(&snapshot).to_string_lossy(),
+            "/var/lib/flarenv/snapshots/snap_1"
+        );
+    }
+}
