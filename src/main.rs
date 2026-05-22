@@ -1,4 +1,4 @@
-use flarenv::{run_preflight, DaemonConfig};
+use flarenv::{measure_usage, run_preflight, DaemonConfig, FileMetadataStore, PathUsageProbe};
 use std::env;
 
 fn main() {
@@ -9,6 +9,10 @@ fn main() {
     }
     if args.get(1).is_some_and(|arg| arg == "check-host") {
         check_host();
+        return;
+    }
+    if args.get(1).is_some_and(|arg| arg == "usage") {
+        usage(args.get(2));
         return;
     }
 
@@ -28,6 +32,50 @@ fn initialize() -> flarenv::Result<()> {
     println!("nix profile: {}", config.nix_profile.profile_path.display());
     println!("persistent daemon, ssh frontend, and host adapters are not wired yet");
     Ok(())
+}
+
+fn usage(metadata_path: Option<&String>) {
+    let Some(metadata_path) = metadata_path else {
+        eprintln!("flarenvd: usage requires a metadata path");
+        std::process::exit(2);
+    };
+    let store = FileMetadataStore::new(metadata_path);
+    let metadata = match store.load() {
+        Ok(metadata) => metadata,
+        Err(err) => {
+            eprintln!("flarenvd: {err}");
+            std::process::exit(1);
+        }
+    };
+    let report = match measure_usage(&metadata, &PathUsageProbe) {
+        Ok(report) => report,
+        Err(err) => {
+            eprintln!("flarenvd: {err}");
+            std::process::exit(1);
+        }
+    };
+
+    println!(
+        "total\tworkspaces={}\tready={}\tdeleted={}\tlogical_bytes={}\tquota_bytes={}\tmemory_limit_bytes={}\tpids_limit={}",
+        report.workspaces.len(),
+        report.ready_workspaces,
+        report.deleted_workspaces,
+        report.logical_bytes,
+        report.quota_bytes,
+        report.memory_limit_bytes,
+        report.pids_limit
+    );
+    for workspace in report.workspaces {
+        println!(
+            "workspace\t{}\tstate={:?}\tlogical_bytes={}\tquota_bytes={}\tmemory_limit_bytes={}\tpids_limit={}",
+            workspace.workspace_id,
+            workspace.state,
+            workspace.logical_bytes,
+            workspace.disk_quota_bytes,
+            workspace.memory_limit_bytes,
+            workspace.pids_limit
+        );
+    }
 }
 
 fn check_host() {
@@ -56,6 +104,7 @@ fn print_help() {
     println!("USAGE:");
     println!("    flarenvd [--help]");
     println!("    flarenvd check-host");
+    println!("    flarenvd usage <metadata-path>");
     println!();
     println!("ENV:");
     println!("    FLARENV_STATE_ROOT       default /var/lib/flarenv");
