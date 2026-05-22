@@ -35,4 +35,7 @@ pub use nix_profile::FixedNixProfile;
 pub use preflight::{run_preflight, HostCheck, PreflightReport};
 pub use runtime::{ControlEvent, RuntimeStats, SessionRuntime};
 pub use storage::{BtrfsStorage, InMemoryStorage, StorageBackend};
-pub use usage::{measure_usage, CapacityReport, PathUsageProbe, UsageProbe, WorkspaceUsage};
+pub use usage::{
+    measure_usage, parse_btrfs_qgroup_show, read_btrfs_qgroup_usage, BtrfsQgroupUsage,
+    BtrfsUsageProbe, CapacityReport, PathUsageProbe, UsageProbe, WorkspaceUsage,
+};

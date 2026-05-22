@@ -85,26 +85,34 @@ fn usage(metadata_path: Option<&String>) {
     };
 
     println!(
-        "total\tworkspaces={}\tready={}\tdeleted={}\tlogical_bytes={}\tquota_bytes={}\tmemory_limit_bytes={}\tpids_limit={}",
+        "total\tworkspaces={}\tready={}\tdeleted={}\tlogical_bytes={}\tretained_bytes={}\tquota_bytes={}\tmemory_limit_bytes={}\tpids_limit={}",
         report.workspaces.len(),
         report.ready_workspaces,
         report.deleted_workspaces,
         report.logical_bytes,
+        optional_bytes(report.retained_bytes),
         report.quota_bytes,
         report.memory_limit_bytes,
         report.pids_limit
     );
     for workspace in report.workspaces {
         println!(
-            "workspace\t{}\tstate={:?}\tlogical_bytes={}\tquota_bytes={}\tmemory_limit_bytes={}\tpids_limit={}",
+            "workspace\t{}\tstate={:?}\tlogical_bytes={}\tretained_bytes={}\tquota_bytes={}\tmemory_limit_bytes={}\tpids_limit={}",
             workspace.workspace_id,
             workspace.state,
             workspace.logical_bytes,
+            optional_bytes(workspace.retained_bytes),
             workspace.disk_quota_bytes,
             workspace.memory_limit_bytes,
             workspace.pids_limit
         );
     }
+}
+
+fn optional_bytes(value: Option<u64>) -> String {
+    value
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "unknown".into())
 }
 
 fn check_host() {
