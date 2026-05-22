@@ -15,6 +15,7 @@ This repository currently contains the Rust control-plane foundation:
 - Storage and executor adapter traits.
 - In-memory implementations for deterministic tests.
 - Host command builders for btrfs and `systemd-nspawn` integration.
+- Event-driven runtime primitives for low idle daemon overhead.
 
 ## Development
 
