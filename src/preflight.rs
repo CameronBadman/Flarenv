@@ -22,13 +22,13 @@ impl PreflightReport {
 
 pub fn run_preflight(config: &DaemonConfig) -> PreflightReport {
     let path = env::var_os("PATH").unwrap_or_default();
-    let mut checks = Vec::new();
-
-    checks.push(binary_check("btrfs", &path));
-    checks.push(binary_check("systemd-nspawn", &path));
-    checks.push(path_check("state parent", state_parent(&config.state_root)));
-    checks.push(path_check("nix store", &config.nix_profile.store_path));
-    checks.push(path_check("nix profile", &config.nix_profile.profile_path));
+    let checks = vec![
+        binary_check("btrfs", &path),
+        binary_check("systemd-nspawn", &path),
+        path_check("state parent", state_parent(&config.state_root)),
+        path_check("nix store", &config.nix_profile.store_path),
+        path_check("nix profile", &config.nix_profile.profile_path),
+    ];
 
     PreflightReport { checks }
 }
