@@ -20,10 +20,14 @@ This repository currently contains the Rust control-plane foundation:
 
 ```sh
 cargo test
+cargo test --test host_integration -- --ignored
 cargo run -- --help
 nix develop
 nix build
 ```
+
+`host_integration` tests are ignored by default because they expect a Linux host
+with btrfs, systemd, and the configured Nix paths available.
 
 The daemon scaffold intentionally does not require root for tests. Real host
 integration should be wired through the adapter traits in `src/storage.rs` and
