@@ -21,6 +21,8 @@ This repository currently contains the Rust control-plane foundation:
 ```sh
 cargo test
 cargo run -- --help
+nix develop
+nix build
 ```
 
 The daemon scaffold intentionally does not require root for tests. Real host
