@@ -158,10 +158,22 @@ where
     async fn auth_publickey(
         &mut self,
         user: &str,
-        _public_key: &PublicKey,
+        public_key: &PublicKey,
     ) -> std::result::Result<Auth, Self::Error> {
-        if self.authorizer.can_open(user, &self.config.workspace_id) {
-            self.authenticated_principal = Some(user.to_string());
+        let principal = match public_key.to_openssh() {
+            Ok(key) => key,
+            Err(_) => {
+                return Ok(Auth::Reject {
+                    proceed_with_methods: None,
+                    partial_success: false,
+                });
+            }
+        };
+        if self
+            .authorizer
+            .can_open(&principal, &self.config.workspace_id)
+        {
+            self.authenticated_principal = Some(format!("{user}:{principal}"));
             Ok(Auth::Accept)
         } else {
             Ok(Auth::Reject {

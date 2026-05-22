@@ -46,9 +46,10 @@ fn initialize() -> flarenv::Result<()> {
     Ok(())
 }
 
-fn serve_ssh(addr: Option<&String>, workspace: Option<&String>, principal: Option<&String>) {
-    let (Some(addr), Some(workspace), Some(principal)) = (addr, workspace, principal) else {
-        eprintln!("flarenvd: serve-ssh requires <addr> <workspace-id> <principal>");
+fn serve_ssh(addr: Option<&String>, workspace: Option<&String>, authorized_key: Option<&String>) {
+    let (Some(addr), Some(workspace), Some(authorized_key)) = (addr, workspace, authorized_key)
+    else {
+        eprintln!("flarenvd: serve-ssh requires <addr> <workspace-id> <authorized-key>");
         std::process::exit(2);
     };
     let addr: SocketAddr = match addr.parse() {
@@ -80,7 +81,7 @@ fn serve_ssh(addr: Option<&String>, workspace: Option<&String>, principal: Optio
         }
     };
     let mut authorizer = AllowListAuthorizer::default();
-    authorizer.grant(principal, workspace_id.clone());
+    authorizer.grant(authorized_key, workspace_id.clone());
     let mut server = FlarenvSshServer::new(
         SshWireConfig::new(addr, workspace_id),
         control_plane,
@@ -203,7 +204,7 @@ fn print_help() {
     println!("    flarenvd [--help]");
     println!("    flarenvd check-host");
     println!("    flarenvd gc-plan <metadata-path>");
-    println!("    flarenvd serve-ssh <addr> <workspace-id> <principal>");
+    println!("    flarenvd serve-ssh <addr> <workspace-id> <authorized-key>");
     println!("    flarenvd usage <metadata-path>");
     println!();
     println!("ENV:");

@@ -23,7 +23,7 @@ This repository currently contains the Rust control-plane foundation:
 cargo test
 cargo test --test host_integration -- --ignored
 cargo run -- --help
-cargo run -- serve-ssh 127.0.0.1:2222 workspace_a agent-key-a
+cargo run -- serve-ssh 127.0.0.1:2222 workspace_a 'ssh-ed25519 AAAA... agent@example'
 nix develop
 nix build
 ```
