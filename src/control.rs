@@ -1,5 +1,6 @@
 use crate::error::{FlarenvError, Result};
 use crate::executor::{ExecRequest, Executor, SessionExit};
+use crate::gc::GcAction;
 use crate::ids::{AgentId, PolicyId, SessionId, SnapshotId, WorkspaceId};
 use crate::model::{ResourceLimits, SessionRequest, Workspace, WorkspaceSnapshot, WorkspaceState};
 use crate::network::NetworkPolicy;
@@ -199,8 +200,58 @@ where
             return Ok(());
         }
 
-        self.storage.delete_workspace(workspace_id)?;
         workspace.state = WorkspaceState::Deleted;
+        Ok(())
+    }
+
+    pub fn purge_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<()> {
+        let workspace = self
+            .metadata
+            .workspaces
+            .get(workspace_id)
+            .ok_or_else(|| FlarenvError::NotFound(format!("workspace {workspace_id}")))?;
+        if workspace.state != WorkspaceState::Deleted {
+            return Err(FlarenvError::PreconditionFailed(format!(
+                "workspace {workspace_id} must be soft-deleted before purge"
+            )));
+        }
+
+        self.storage.delete_workspace(workspace_id)?;
+        self.metadata.workspaces.remove(workspace_id);
+        Ok(())
+    }
+
+    pub fn purge_snapshot(&mut self, snapshot_id: &SnapshotId) -> Result<()> {
+        if self
+            .metadata
+            .workspaces
+            .values()
+            .any(|workspace| workspace.parent_snapshot.as_ref() == Some(snapshot_id))
+        {
+            return Err(FlarenvError::PreconditionFailed(format!(
+                "snapshot {snapshot_id} is still used by a branch"
+            )));
+        }
+        if !self.metadata.snapshots.contains_key(snapshot_id) {
+            return Err(FlarenvError::NotFound(format!("snapshot {snapshot_id}")));
+        }
+
+        self.storage.delete_snapshot(snapshot_id)?;
+        self.metadata.snapshots.remove(snapshot_id);
+        Ok(())
+    }
+
+    pub fn execute_gc_actions(&mut self, actions: &[GcAction]) -> Result<()> {
+        for action in actions {
+            match action {
+                GcAction::DeleteWorkspace { workspace_id } => {
+                    self.purge_workspace(workspace_id)?;
+                }
+                GcAction::DeleteSnapshot { snapshot_id } => {
+                    self.purge_snapshot(snapshot_id)?;
+                }
+            }
+        }
         Ok(())
     }
 
@@ -387,5 +438,30 @@ mod tests {
             SessionRequest::default(),
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn gc_actions_purge_soft_deleted_workspaces_and_snapshots() {
+        let mut cp = control_plane();
+        let workspace_id = WorkspaceId::new("workspace_a").unwrap();
+        let snapshot_id = SnapshotId::new("snap_a").unwrap();
+        cp.create_workspace(workspace_id.clone(), AgentId::new("agent_a").unwrap())
+            .unwrap();
+        cp.snapshot_workspace(&workspace_id, snapshot_id.clone())
+            .unwrap();
+        cp.delete_workspace(&workspace_id).unwrap();
+
+        cp.execute_gc_actions(&[
+            crate::gc::GcAction::DeleteSnapshot {
+                snapshot_id: snapshot_id.clone(),
+            },
+            crate::gc::GcAction::DeleteWorkspace {
+                workspace_id: workspace_id.clone(),
+            },
+        ])
+        .unwrap();
+
+        assert!(cp.metadata().workspace(&workspace_id).is_none());
+        assert!(cp.metadata().snapshot(&snapshot_id).is_none());
     }
 }

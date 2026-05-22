@@ -21,6 +21,7 @@ pub trait StorageBackend {
         snapshot_id: &SnapshotId,
     ) -> Result<PathBuf>;
     fn delete_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<()>;
+    fn delete_snapshot(&mut self, snapshot_id: &SnapshotId) -> Result<()>;
     fn set_quota(&mut self, workspace_id: &WorkspaceId, limits: &ResourceLimits) -> Result<()>;
 }
 
@@ -87,6 +88,13 @@ impl StorageBackend for InMemoryStorage {
     fn delete_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<()> {
         if self.workspaces.remove(workspace_id).is_none() {
             return Err(FlarenvError::NotFound(format!("workspace {workspace_id}")));
+        }
+        Ok(())
+    }
+
+    fn delete_snapshot(&mut self, snapshot_id: &SnapshotId) -> Result<()> {
+        if self.snapshots.remove(snapshot_id).is_none() {
+            return Err(FlarenvError::NotFound(format!("snapshot {snapshot_id}")));
         }
         Ok(())
     }
@@ -208,6 +216,10 @@ impl StorageBackend for BtrfsStorage {
 
     fn delete_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<()> {
         run_command(Self::delete_command(&self.workspace_path(workspace_id)))
+    }
+
+    fn delete_snapshot(&mut self, snapshot_id: &SnapshotId) -> Result<()> {
+        run_command(Self::delete_command(&self.snapshot_path(snapshot_id)))
     }
 
     fn set_quota(&mut self, workspace_id: &WorkspaceId, limits: &ResourceLimits) -> Result<()> {
