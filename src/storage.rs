@@ -2,6 +2,8 @@ use crate::error::{FlarenvError, Result};
 use crate::ids::{SnapshotId, WorkspaceId};
 use crate::model::ResourceLimits;
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -153,6 +155,86 @@ impl BtrfsStorage {
         command.arg("subvolume").arg("delete").arg(path);
         command
     }
+
+    pub fn quota_command(&self, workspace_id: &WorkspaceId, bytes: u64) -> Command {
+        let mut command = Command::new("btrfs");
+        command
+            .arg("qgroup")
+            .arg("limit")
+            .arg(bytes.to_string())
+            .arg(self.workspace_path(workspace_id));
+        command
+    }
+
+    fn ensure_layout(&self) -> Result<()> {
+        fs::create_dir_all(self.root.join("workspaces"))?;
+        fs::create_dir_all(self.root.join("snapshots"))?;
+        Ok(())
+    }
+}
+
+impl StorageBackend for BtrfsStorage {
+    fn create_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<PathBuf> {
+        self.ensure_layout()?;
+        let path = self.workspace_path(workspace_id);
+        run_command(self.create_workspace_command(workspace_id))?;
+        Ok(path)
+    }
+
+    fn clone_workspace(
+        &mut self,
+        snapshot_id: &SnapshotId,
+        workspace_id: &WorkspaceId,
+    ) -> Result<PathBuf> {
+        self.ensure_layout()?;
+        let path = self.workspace_path(workspace_id);
+        run_command(self.clone_command(snapshot_id, workspace_id))?;
+        Ok(path)
+    }
+
+    fn snapshot_workspace(
+        &mut self,
+        workspace_id: &WorkspaceId,
+        snapshot_id: &SnapshotId,
+    ) -> Result<PathBuf> {
+        self.ensure_layout()?;
+        let path = self.snapshot_path(snapshot_id);
+        run_command(self.snapshot_command(workspace_id, snapshot_id))?;
+        Ok(path)
+    }
+
+    fn delete_workspace(&mut self, workspace_id: &WorkspaceId) -> Result<()> {
+        run_command(Self::delete_command(&self.workspace_path(workspace_id)))
+    }
+
+    fn set_quota(&mut self, workspace_id: &WorkspaceId, limits: &ResourceLimits) -> Result<()> {
+        run_command(self.quota_command(workspace_id, limits.disk_max_bytes))
+    }
+}
+
+fn run_command(mut command: Command) -> Result<()> {
+    let program = command.get_program().to_owned();
+    let args: Vec<_> = command.get_args().map(|arg| arg.to_owned()).collect();
+    let output = command.output()?;
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    Err(FlarenvError::Storage(format!(
+        "{} {} failed with status {}: {}",
+        display_os(&program),
+        args.iter()
+            .map(|arg| display_os(arg.as_os_str()))
+            .collect::<Vec<_>>()
+            .join(" "),
+        output.status,
+        stderr.trim()
+    )))
+}
+
+fn display_os(value: &OsStr) -> String {
+    value.to_string_lossy().into_owned()
 }
 
 #[cfg(test)]

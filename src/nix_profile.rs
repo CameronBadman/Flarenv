@@ -30,7 +30,9 @@ impl Default for FixedNixProfile {
 
 fn validate_absolute(name: &str, path: &Path) -> Result<()> {
     if !path.is_absolute() {
-        return Err(FlarenvError::InvalidInput(format!("{name} must be absolute")));
+        return Err(FlarenvError::InvalidInput(format!(
+            "{name} must be absolute"
+        )));
     }
     Ok(())
 }

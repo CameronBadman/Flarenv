@@ -1,9 +1,7 @@
 use crate::error::{FlarenvError, Result};
 use crate::executor::{ExecRequest, Executor, SessionExit};
 use crate::ids::{AgentId, PolicyId, SessionId, SnapshotId, WorkspaceId};
-use crate::model::{
-    ResourceLimits, SessionRequest, Workspace, WorkspaceSnapshot, WorkspaceState,
-};
+use crate::model::{ResourceLimits, SessionRequest, Workspace, WorkspaceSnapshot, WorkspaceState};
 use crate::network::NetworkPolicy;
 use crate::nix_profile::FixedNixProfile;
 use crate::storage::StorageBackend;
@@ -178,11 +176,7 @@ where
         Ok(())
     }
 
-    pub fn set_limits(
-        &mut self,
-        workspace_id: &WorkspaceId,
-        limits: ResourceLimits,
-    ) -> Result<()> {
+    pub fn set_limits(&mut self, workspace_id: &WorkspaceId, limits: ResourceLimits) -> Result<()> {
         self.ready_workspace(workspace_id)?;
         self.storage.set_quota(workspace_id, &limits)?;
         self.metadata

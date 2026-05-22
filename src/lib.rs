@@ -16,9 +16,7 @@ pub use control::{ControlPlane, InMemoryMetadata};
 pub use error::{FlarenvError, Result};
 pub use executor::{ExecRequest, Executor, NspawnExecutor, SessionExit};
 pub use ids::{AgentId, PolicyId, SessionId, SnapshotId, WorkspaceId};
-pub use model::{
-    ResourceLimits, SessionRequest, Workspace, WorkspaceSnapshot, WorkspaceState,
-};
+pub use model::{ResourceLimits, SessionRequest, Workspace, WorkspaceSnapshot, WorkspaceState};
 pub use network::NetworkPolicy;
 pub use nix_profile::FixedNixProfile;
 pub use storage::{BtrfsStorage, InMemoryStorage, StorageBackend};

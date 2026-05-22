@@ -121,7 +121,10 @@ fn add_network_args(command: &mut Command, policy: &NetworkPolicy) {
     match policy {
         NetworkPolicy::DenyAll { .. } => {}
         NetworkPolicy::AllowEgress { id, .. } => {
-            command.arg("--network-veth").arg("--network-zone").arg(id.as_str());
+            command
+                .arg("--network-veth")
+                .arg("--network-zone")
+                .arg(id.as_str());
         }
     }
 }

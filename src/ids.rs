@@ -34,7 +34,9 @@ id_type!(SessionId);
 
 fn validate_id(kind: &str, value: &str) -> Result<()> {
     if value.is_empty() {
-        return Err(FlarenvError::InvalidInput(format!("{kind} cannot be empty")));
+        return Err(FlarenvError::InvalidInput(format!(
+            "{kind} cannot be empty"
+        )));
     }
 
     let valid = value
