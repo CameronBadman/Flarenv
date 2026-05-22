@@ -1,10 +1,14 @@
-use flarenv::DaemonConfig;
+use flarenv::{run_preflight, DaemonConfig};
 use std::env;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         print_help();
+        return;
+    }
+    if args.get(1).is_some_and(|arg| arg == "check-host") {
+        check_host();
         return;
     }
 
@@ -26,11 +30,32 @@ fn initialize() -> flarenv::Result<()> {
     Ok(())
 }
 
+fn check_host() {
+    let config = match DaemonConfig::from_env() {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("flarenvd: {err}");
+            std::process::exit(1);
+        }
+    };
+
+    let report = run_preflight(&config);
+    for check in &report.checks {
+        let status = if check.ok { "ok" } else { "fail" };
+        println!("{status}\t{}\t{}", check.name, check.detail);
+    }
+
+    if !report.ok() {
+        std::process::exit(1);
+    }
+}
+
 fn print_help() {
     println!("flarenvd");
     println!();
     println!("USAGE:");
     println!("    flarenvd [--help]");
+    println!("    flarenvd check-host");
     println!();
     println!("ENV:");
     println!("    FLARENV_STATE_ROOT       default /var/lib/flarenv");

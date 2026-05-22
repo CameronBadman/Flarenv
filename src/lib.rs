@@ -13,6 +13,7 @@ pub mod layout;
 pub mod model;
 pub mod network;
 pub mod nix_profile;
+pub mod preflight;
 pub mod storage;
 
 pub use config::DaemonConfig;
@@ -25,4 +26,5 @@ pub use layout::{initialize_workspace_root, GUEST_PROFILE_PATH};
 pub use model::{ResourceLimits, SessionRequest, Workspace, WorkspaceSnapshot, WorkspaceState};
 pub use network::NetworkPolicy;
 pub use nix_profile::FixedNixProfile;
+pub use preflight::{run_preflight, HostCheck, PreflightReport};
 pub use storage::{BtrfsStorage, InMemoryStorage, StorageBackend};
