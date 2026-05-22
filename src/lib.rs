@@ -3,6 +3,7 @@
 //! The crate keeps host-specific work behind traits so lifecycle behavior can
 //! be tested without root privileges, btrfs, or systemd.
 
+pub mod config;
 pub mod control;
 pub mod error;
 pub mod executor;
@@ -13,6 +14,7 @@ pub mod network;
 pub mod nix_profile;
 pub mod storage;
 
+pub use config::DaemonConfig;
 pub use control::{ControlPlane, InMemoryMetadata};
 pub use error::{FlarenvError, Result};
 pub use executor::{ExecRequest, Executor, NspawnExecutor, SessionExit};
