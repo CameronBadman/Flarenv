@@ -6,6 +6,7 @@
 pub mod control;
 pub mod error;
 pub mod executor;
+pub mod frontend;
 pub mod ids;
 pub mod model;
 pub mod network;
@@ -15,6 +16,7 @@ pub mod storage;
 pub use control::{ControlPlane, InMemoryMetadata};
 pub use error::{FlarenvError, Result};
 pub use executor::{ExecRequest, Executor, NspawnExecutor, SessionExit};
+pub use frontend::{AllowListAuthorizer, SessionAuthorizer, SshSessionRequest, SshSessionRouter};
 pub use ids::{AgentId, PolicyId, SessionId, SnapshotId, WorkspaceId};
 pub use model::{ResourceLimits, SessionRequest, Workspace, WorkspaceSnapshot, WorkspaceState};
 pub use network::NetworkPolicy;
